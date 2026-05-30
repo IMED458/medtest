@@ -1,0 +1,155 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Registered credentials of students and admins",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Test": {
+      "title": "Exam Paper",
+      "description": "Contains metadata for uploaded quizzes and test sets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "questionCount": { "type": "integer" },
+        "createdBy": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "errorCount": { "type": "integer" }
+      },
+      "required": ["id", "title", "questionCount", "createdBy"]
+    },
+    "Question": {
+      "title": "Question Node",
+      "description": "Specific question card holding options and direct answers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "originalIndex": { "type": "integer" },
+        "questionText": { "type": "string" },
+        "options": { "type": "array" },
+        "correctOptionIndex": { "type": "integer" }
+      },
+      "required": ["id", "originalIndex", "questionText", "options", "correctOptionIndex"]
+    },
+    "UserProgress": {
+      "title": "Practice Session Progress",
+      "description": "Saves student's testing progression, correct counts, wrong counts, and flagged indices",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "testId": { "type": "string" },
+        "userId": { "type": "string" },
+        "currentQuestionIndex": { "type": "integer" },
+        "answeredCount": { "type": "integer" },
+        "correctCount": { "type": "integer" },
+        "wrongCount": { "type": "integer" },
+        "updatedAt": { "type": "string" },
+        "timeSpent": { "type": "integer" },
+        "isCompleted": { "type": "boolean" },
+        "wrongQuestions": { "type": "array" },
+        "flaggedQuestions": { "type": "array" },
+        "responses": { "type": "object" }
+      },
+      "required": ["id", "testId", "userId"]
+    },
+    "Group": {
+      "title": "Study Group Workspace",
+      "description": "Central student discussion and collaboration entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "code": { "type": "string" }
+      },
+      "required": ["id", "name", "createdBy", "code"]
+    },
+    "GroupMember": {
+      "title": "Study Group Member",
+      "description": "Individual member profile in the group workspace",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "joinedAt": { "type": "string" },
+        "role": { "type": "string", "enum": ["owner", "member"] }
+      },
+      "required": ["userId", "email"]
+    },
+    "GroupTest": {
+      "title": "Shared Group Exam",
+      "description": "Test and exams shared to the study group",
+      "type": "object",
+      "properties": {
+        "testId": { "type": "string" },
+        "sharedBy": { "type": "string" },
+        "sharedByName": { "type": "string" },
+        "sharedAt": { "type": "string" }
+      },
+      "required": ["testId", "sharedBy"]
+    },
+    "ChatMessage": {
+      "title": "Group Chat Message",
+      "description": "Synchronous chat stream items for student reviews",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["id", "userId", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User database directory"
+    },
+    "/tests/{testId}": {
+      "schema": "Test",
+      "description": "Collection of available exams in the system"
+    },
+    "/tests/{testId}/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Exams question details"
+    },
+    "/progress/{progressId}": {
+      "schema": "UserProgress",
+      "description": "Personal practice session metrics and history logs"
+    },
+    "/groups/{groupId}": {
+      "schema": "Group",
+      "description": "Available study rooms on the platform"
+    },
+    "/groups/{groupId}/members/{memberId}": {
+      "schema": "GroupMember",
+      "description": "Directory of registered members of specific group"
+    },
+    "/groups/{groupId}/sharedTests/{testId}": {
+      "schema": "GroupTest",
+      "description": "Practices and quizzes shared directly inside active study groups"
+    },
+    "/groups/{groupId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Synchronized messaging history within study group panels"
+    }
+  }
+}

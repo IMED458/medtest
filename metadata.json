@@ -1,0 +1,6 @@
+{
+  "name": "ტესტები სტუდენტებისთვის",
+  "description": "სრულად ფუნქციური, პროფესიონალური ქართულენოვანი ვებაპლიკაცია სტუდენტებისთვის გამოცდების მოსამზადებლად, ჯგუფური გაზიარებითა და პროგრესის შენახვით.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
