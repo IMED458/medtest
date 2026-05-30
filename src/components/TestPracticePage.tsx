@@ -612,7 +612,7 @@ export const TestPracticePage: React.FC<TestPracticePageProps> = ({ testId, onGo
     ].filter(Boolean).join(':');
   };
 
-  if (loading) {
+  if (loading && !showPrompt) {
     return (
       <div className="flex flex-col items-center justify-center py-24 font-sans">
         <RefreshCw className="w-10 h-10 text-indigo-505 animate-spin mb-4" />

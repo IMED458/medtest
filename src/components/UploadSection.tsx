@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, setDoc, collection } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { useFirebase } from './FirebaseProvider';
 import { parseTextToQuestions, extractTextFromPDF } from '../utils/parser';
 import { localSaveTest, localSaveQuestions } from '../utils/localStore';
@@ -117,7 +117,7 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
 
         const stepPct = 20 / allQuestions.length;
         for (let idx = 0; idx < allQuestions.length; idx++) {
-          await setDoc(doc(doc(db, 'tests', testId), 'questions', allQuestions[idx].id), allQuestions[idx]);
+          await setDoc(doc(db, 'tests', testId, 'questions', allQuestions[idx].id), allQuestions[idx]);
           setUploadProgress(80 + Math.floor((idx + 1) * stepPct));
         }
       }
