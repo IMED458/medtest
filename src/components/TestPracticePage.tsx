@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, setDoc, onSnapshot, collection, getDocs } from 'firebase/firestore';
+import { localGetTest, localGetQuestions, localGetTestProgress, localSaveProgress } from '../utils/localStore';
 import { useFirebase } from './FirebaseProvider';
 import { Question, UserProgress, TestMetadata } from '../types';
 import { 
@@ -38,7 +39,7 @@ interface TestPracticePageProps {
 }
 
 export const TestPracticePage: React.FC<TestPracticePageProps> = ({ testId, onGoBack, initialResume = false }) => {
-  const { user } = useFirebase();
+  const { user, isLocalUser } = useFirebase();
   const [test, setTest] = useState<TestMetadata | null>(null);
   const [originalQuestions, setOriginalQuestions] = useState<Question[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -204,7 +205,23 @@ export const TestPracticePage: React.FC<TestPracticePageProps> = ({ testId, onGo
   useEffect(() => {
     const fetchTestData = async () => {
       try {
-        // Fetch Metadata
+        if (isLocalUser) {
+          const meta = localGetTest(testId);
+          if (!meta) { alert('ტესტი ვერ მოიძებნა'); onGoBack(); return; }
+          setTest(meta);
+          const qList = localGetQuestions(testId).sort((a, b) => a.originalIndex - b.originalIndex);
+          setOriginalQuestions(qList);
+          setQuestions(qList);
+          if (user) {
+            const prog = localGetTestProgress(testId, user.uid);
+            if (prog) { setPendingProgress(prog); setShowPrompt(true); } else { setLoading(false); }
+          } else {
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Fetch Metadata from Firestore
         const testSnap = await getDoc(doc(db, 'tests', testId));
         if (!testSnap.exists()) {
           alert('ტესტი ვერ მოიძებნა');
@@ -220,9 +237,7 @@ export const TestPracticePage: React.FC<TestPracticePageProps> = ({ testId, onGo
         qSnap.forEach((doc) => {
           qList.push(doc.data() as Question);
         });
-        
-        // Sort by original index
-        qList.sort((a,b) => a.originalIndex - b.originalIndex);
+        qList.sort((a, b) => a.originalIndex - b.originalIndex);
         setOriginalQuestions(qList);
         setQuestions(qList);
 
@@ -232,7 +247,7 @@ export const TestPracticePage: React.FC<TestPracticePageProps> = ({ testId, onGo
           if (pSnap.exists()) {
             const prog = pSnap.data() as UserProgress;
             setPendingProgress(prog);
-            setShowPrompt(true); // show resume dialog prompt
+            setShowPrompt(true);
           } else {
             setLoading(false);
           }
@@ -278,25 +293,29 @@ export const TestPracticePage: React.FC<TestPracticePageProps> = ({ testId, onGo
     resps: any = responses
   ) => {
     if (!user) return;
+    const progressPayload: UserProgress = {
+      id: `${testId}_${user.uid}`,
+      testId: testId,
+      userId: user.uid,
+      currentQuestionIndex: targetIdx,
+      answeredCount: Object.keys(resps).length,
+      correctCount: corr,
+      wrongCount: wrg,
+      updatedAt: new Date().toISOString(),
+      timeSpent: seconds,
+      isCompleted: Object.keys(resps).length === originalQuestions.length,
+      wrongQuestions: histWrgs,
+      flaggedQuestions: flags,
+      responses: resps
+    };
     try {
-      const progressPayload: UserProgress = {
-        id: `${testId}_${user.uid}`,
-        testId: testId,
-        userId: user.uid,
-        currentQuestionIndex: targetIdx,
-        answeredCount: Object.keys(resps).length,
-        correctCount: corr,
-        wrongCount: wrg,
-        updatedAt: new Date().toISOString(),
-        timeSpent: seconds,
-        isCompleted: Object.keys(resps).length === originalQuestions.length,
-        wrongQuestions: histWrgs,
-        flaggedQuestions: flags,
-        responses: resps
-      };
-      await setDoc(doc(db, 'progress', `${testId}_${user.uid}`), progressPayload);
+      if (isLocalUser) {
+        localSaveProgress(progressPayload);
+      } else {
+        await setDoc(doc(db, 'progress', `${testId}_${user.uid}`), progressPayload);
+      }
     } catch (err) {
-      console.warn('Could not back up progress to Firestore: ', err);
+      console.warn('Could not back up progress: ', err);
     }
   };
 

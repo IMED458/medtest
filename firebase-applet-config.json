@@ -1,10 +1,9 @@
 {
-  "projectId": "peerless-invention-x07pf",
-  "appId": "1:746453346583:web:e933e8c8c6ecfe9c0baf52",
-  "apiKey": "AIzaSyDVzyWVF4XJgyJ3syUNCblp2wZH_m4aNNU",
-  "authDomain": "peerless-invention-x07pf.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-3d7c8758-e6fa-4d90-a909-9e46cfb562dc",
-  "storageBucket": "peerless-invention-x07pf.firebasestorage.app",
-  "messagingSenderId": "746453346583",
-  "measurementId": ""
+  "apiKey": "AIzaSyAKOKceqt4_6mnyjUgQZ1009630psdPDV4",
+  "authDomain": "medtest-98d0a.firebaseapp.com",
+  "projectId": "medtest-98d0a",
+  "storageBucket": "medtest-98d0a.firebasestorage.app",
+  "messagingSenderId": "596781764382",
+  "appId": "1:596781764382:web:5274026b54ea9a85d6830f",
+  "measurementId": "G-B09XJRD2CC"
 }

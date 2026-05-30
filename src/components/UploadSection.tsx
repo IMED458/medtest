@@ -3,6 +3,7 @@ import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { useFirebase } from './FirebaseProvider';
 import { parseTextToQuestions, extractTextFromPDF } from '../utils/parser';
+import { localSaveTest, localSaveQuestions } from '../utils/localStore';
 import { TestMetadata, Question } from '../types';
 import { UploadCloud, FileText, FileDown, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { playClickSound, playCorrectSound, playIncorrectSound } from '../utils/sounds';
@@ -12,7 +13,7 @@ interface UploadSectionProps {
 }
 
 export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess }) => {
-  const { user } = useFirebase();
+  const { user, isLocalUser } = useFirebase();
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -85,13 +86,12 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
         throw new Error('ვალიდური კითხვები ვერ მოიძებნა. გთხოვთ შეამოწმოთ ფაილის სინტაქსი.');
       }
 
-      setStatusText('ტესტის მონაცემების შენახვა ბაზაში...');
-      
-      // Save Test Metadata
+      setStatusText('ტესტის მონაცემების შენახვა...');
+
       const testId = 'test_' + Date.now().toString();
       const testMeta: TestMetadata = {
         id: testId,
-        title: file.name.replace(/\.[^/.]+$/, ""), // remove extension
+        title: file.name.replace(/\.[^/.]+$/, ""),
         createdBy: user.uid,
         creatorName: user.displayName,
         createdAt: new Date().toISOString(),
@@ -101,23 +101,25 @@ export const UploadSection: React.FC<UploadSectionProps> = ({ onUploadSuccess })
         validationReport: validationReport
       };
 
-      await setDoc(doc(db, 'tests', testId), testMeta);
-      setUploadProgress(80);
+      const allQuestions: Question[] = questions.map((q, idx) => ({
+        ...q,
+        id: `q_${idx + 1}`,
+        testId,
+      }));
 
-      // Save each Question iteratively to nested Questions subcollection
-      const questionsCollectionRef = collection(db, 'tests', testId, 'questions');
-      const stepPct = 20 / questions.length;
-      
-      for (let idx = 0; idx < questions.length; idx++) {
-        const qSeed = questions[idx];
-        const qId = `q_${idx + 1}`;
-        const questionData: Question = {
-          ...qSeed,
-          id: qId,
-          testId: testId,
-        };
-        await setDoc(doc(doc(db, 'tests', testId), 'questions', qId), questionData);
-        setUploadProgress(80 + Math.floor((idx + 1) * stepPct));
+      if (isLocalUser) {
+        localSaveTest(testMeta);
+        localSaveQuestions(testId, allQuestions);
+        setUploadProgress(100);
+      } else {
+        await setDoc(doc(db, 'tests', testId), testMeta);
+        setUploadProgress(80);
+
+        const stepPct = 20 / allQuestions.length;
+        for (let idx = 0; idx < allQuestions.length; idx++) {
+          await setDoc(doc(doc(db, 'tests', testId), 'questions', allQuestions[idx].id), allQuestions[idx]);
+          setUploadProgress(80 + Math.floor((idx + 1) * stepPct));
+        }
       }
 
       setUploadProgress(100);

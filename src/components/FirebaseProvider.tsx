@@ -25,6 +25,7 @@ interface FirebaseContextType {
   loginAnonymously: () => Promise<void>;
   authReady: boolean;
   isAdmin: boolean;
+  isLocalUser: boolean;
 }
 
 const FirebaseContext = createContext<FirebaseContextType>({
@@ -37,6 +38,7 @@ const FirebaseContext = createContext<FirebaseContextType>({
   loginAnonymously: async () => {},
   authReady: false,
   isAdmin: false,
+  isLocalUser: false,
 });
 
 export const useFirebase = () => useContext(FirebaseContext);
@@ -45,6 +47,7 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authReady, setAuthReady] = useState(false);
+  const [isLocalUser, setIsLocalUser] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
@@ -107,33 +110,33 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loginAnonymously = async () => {
     setLoading(true);
-    try {
-      const { signInAnonymously } = await import('firebase/auth');
-      await signInAnonymously(auth);
-    } catch (err) {
-      console.warn('Firebase Anonymous Login failed, using local Guest mode:', err);
-      const localGuestProfile: UserProfile = {
-        uid: 'guest_local_' + Math.random().toString(36).substring(2, 9),
-        email: 'guest@portal.ge',
-        displayName: 'სტუმარი სტუდენტი',
-        photoURL: 'https://api.dicebear.com/7.x/bottts/svg?seed=guest_local',
-        createdAt: new Date().toISOString(),
-        role: 'user'
-      };
-      setUser(localGuestProfile);
-    } finally {
-      setLoading(false);
-    }
+    // Persist a stable guest ID in localStorage so progress survives page reloads
+    const existingId = localStorage.getItem('medtest_guest_uid');
+    const guestId = existingId || ('guest_local_' + Math.random().toString(36).substring(2, 9));
+    if (!existingId) localStorage.setItem('medtest_guest_uid', guestId);
+
+    const localGuestProfile: UserProfile = {
+      uid: guestId,
+      email: 'guest@medtest.local',
+      displayName: 'სტუმარი სტუდენტი',
+      photoURL: 'https://api.dicebear.com/7.x/bottts/svg?seed=' + guestId,
+      createdAt: new Date().toISOString(),
+      role: 'user'
+    };
+    setIsLocalUser(true);
+    setUser(localGuestProfile);
+    setLoading(false);
   };
 
   const logout = async () => {
     setLoading(true);
     try {
-      await signOut(auth);
+      if (!isLocalUser) await signOut(auth);
+      setIsLocalUser(false);
       setUser(null);
     } catch (err) {
       console.error('Sign-Out failed:', err);
-      // Ensure we clear state even if signOut throws
+      setIsLocalUser(false);
       setUser(null);
     } finally {
       setLoading(false);
@@ -143,16 +146,17 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const isAdmin = user?.role === 'admin';
 
   return (
-    <FirebaseContext.Provider value={{ 
-      user, 
-      loading, 
-      loginWithGoogle, 
-      signInWithGoogle: loginWithGoogle, 
-      logout, 
-      signOutUser: logout, 
-      loginAnonymously, 
-      authReady, 
-      isAdmin 
+    <FirebaseContext.Provider value={{
+      user,
+      loading,
+      loginWithGoogle,
+      signInWithGoogle: loginWithGoogle,
+      logout,
+      signOutUser: logout,
+      loginAnonymously,
+      authReady,
+      isAdmin,
+      isLocalUser,
     }}>
       {children}
     </FirebaseContext.Provider>

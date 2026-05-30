@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, onSnapshot, doc, deleteDoc, getDocs, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { useFirebase } from './FirebaseProvider';
+import { localGetTests, localDeleteTest, localUpdateTest, localGetProgress, localDeleteProgress } from '../utils/localStore';
 import { TestMetadata, Group, UserProgress } from '../types';
 import { Play, RotateCcw, Share2, Edit3, Trash2, Calendar, ClipboardList, Info, Users, ExternalLink, RefreshCw } from 'lucide-react';
 import { playClickSound, playCorrectSound, playIncorrectSound } from '../utils/sounds';
@@ -11,12 +12,12 @@ interface MyTestsSectionProps {
 }
 
 export const MyTestsSection: React.FC<MyTestsSectionProps> = ({ onStartTest }) => {
-  const { user } = useFirebase();
+  const { user, isLocalUser } = useFirebase();
   const [tests, setTests] = useState<TestMetadata[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [progresses, setProgresses] = useState<Record<string, UserProgress>>({});
   const [loading, setLoading] = useState(true);
-  
+
   // Modals status
   const [shareModalConfig, setShareModalConfig] = useState<{ testId: string; title: string } | null>(null);
   const [editModalConfig, setEditModalConfig] = useState<{ testId: string; title: string } | null>(null);
@@ -26,6 +27,19 @@ export const MyTestsSection: React.FC<MyTestsSectionProps> = ({ onStartTest }) =
   useEffect(() => {
     if (!user) return;
 
+    if (isLocalUser) {
+      const localTests = localGetTests(user.uid).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setTests(localTests);
+      const progressList = localGetProgress(user.uid);
+      const progressMap: Record<string, UserProgress> = {};
+      progressList.forEach(p => { progressMap[p.testId] = p; });
+      setProgresses(progressMap);
+      setLoading(false);
+      return;
+    }
+
     // Listen to user tests
     const q = query(collection(db, 'tests'), where('createdBy', '==', user.uid));
     const unsubTests = onSnapshot(q, (snapshot) => {
@@ -33,15 +47,14 @@ export const MyTestsSection: React.FC<MyTestsSectionProps> = ({ onStartTest }) =
       snapshot.forEach((doc) => {
         list.push(doc.data() as TestMetadata);
       });
-      // Sort newest first
-      list.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setTests(list);
       setLoading(false);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'tests');
     });
 
-    // Listen to groups in which user is participant to support sharing
+    // Listen to groups
     const unsubGroups = onSnapshot(collection(db, 'groups'), (snapshot) => {
       const gpList: Group[] = [];
       snapshot.forEach((gpDoc) => {
@@ -66,25 +79,22 @@ export const MyTestsSection: React.FC<MyTestsSectionProps> = ({ onStartTest }) =
       unsubGroups();
       unsubProgress();
     };
-  }, [user]);
+  }, [user, isLocalUser]);
 
   const handleDeleteTest = async (testId: string) => {
     if (!window.confirm('ნამდვილად გსურთ ამ ტესტის წაშლა? ყველა კითხვა და პროგრესი წაიშლება შეუქცევადად.')) return;
     playClickSound();
     try {
-      // 1. Delete test document
-      await deleteDoc(doc(db, 'tests', testId));
-      
-      // 2. Delete questions nested under the test (optionally we could query and delete them)
-      const qSnap = await getDocs(collection(db, 'tests', testId, 'questions'));
-      const deletePromises = qSnap.docs.map(qDoc => deleteDoc(qDoc.ref));
-      await Promise.all(deletePromises);
-
-      // 3. Delete user progress on this test
-      if (user) {
-        await deleteDoc(doc(db, 'progress', `${testId}_${user.uid}`));
+      if (isLocalUser) {
+        localDeleteTest(testId);
+        if (user) localDeleteProgress(testId, user.uid);
+        setTests(prev => prev.filter(t => t.id !== testId));
+      } else {
+        await deleteDoc(doc(db, 'tests', testId));
+        const qSnap = await getDocs(collection(db, 'tests', testId, 'questions'));
+        await Promise.all(qSnap.docs.map(qDoc => deleteDoc(qDoc.ref)));
+        if (user) await deleteDoc(doc(db, 'progress', `${testId}_${user.uid}`));
       }
-
       playCorrectSound();
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `tests/${testId}`);
@@ -95,9 +105,12 @@ export const MyTestsSection: React.FC<MyTestsSectionProps> = ({ onStartTest }) =
     if (!editModalConfig || !editedTitle.trim()) return;
     playClickSound();
     try {
-      await updateDoc(doc(db, 'tests', editModalConfig.testId), {
-        title: editedTitle.trim()
-      });
+      if (isLocalUser) {
+        localUpdateTest(editModalConfig.testId, { title: editedTitle.trim() });
+        setTests(prev => prev.map(t => t.id === editModalConfig.testId ? { ...t, title: editedTitle.trim() } : t));
+      } else {
+        await updateDoc(doc(db, 'tests', editModalConfig.testId), { title: editedTitle.trim() });
+      }
       setEditModalConfig(null);
       setEditedTitle('');
       playCorrectSound();

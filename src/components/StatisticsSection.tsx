@@ -2,16 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useFirebase } from './FirebaseProvider';
+import { localGetProgress } from '../utils/localStore';
 import { UserProgress } from '../types';
 import { Award, CheckCircle, XCircle, TrendingUp, BarChart, Calendar, Hourglass, Percent } from 'lucide-react';
 
 export const StatisticsSection: React.FC = () => {
-  const { user } = useFirebase();
+  const { user, isLocalUser } = useFirebase();
   const [progressData, setProgressData] = useState<UserProgress[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
+
+    if (isLocalUser) {
+      setProgressData(localGetProgress(user.uid));
+      setLoading(false);
+      return;
+    }
 
     const q = query(collection(db, 'progress'), where('userId', '==', user.uid));
     const unsub = onSnapshot(q, (snapshot) => {
@@ -26,7 +33,7 @@ export const StatisticsSection: React.FC = () => {
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user, isLocalUser]);
 
   // Aggregate Metrics
   const totalStarted = progressData.length;
