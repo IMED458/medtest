@@ -311,7 +311,13 @@ export const ResidencyTestPage: React.FC<Props> = ({ onGoBack }) => {
   const handleJumpToNumber = (e: React.FormEvent) => {
     e.preventDefault();
     const n = parseInt(jumpInput);
-    if (!isNaN(n) && n >= 1 && n <= activeQuestionsPool.length) { setCurrentIdx(n - 1); setJumpInput(''); if (soundEnabled) playCorrectSound(); }
+    if (!isNaN(n) && n >= 1 && n <= activeQuestionsPool.length) {
+      const targetIdx = n - 1;
+      setCurrentIdx(targetIdx);
+      setJumpInput('');
+      saveProgress(targetIdx);
+      if (soundEnabled) playCorrectSound();
+    }
     else { alert(`1-დან ${activeQuestionsPool.length}-მდე`); setJumpInput(''); }
   };
   const resetAll = () => {
@@ -331,7 +337,10 @@ export const ResidencyTestPage: React.FC<Props> = ({ onGoBack }) => {
   const jumpToSection = (sec: ResidencySection) => {
     playClickSound();
     const idx = activeQuestionsPool.findIndex(q => q.globalIndex >= sec.startIndex);
-    if (idx >= 0) setCurrentIdx(idx);
+    if (idx >= 0) {
+      setCurrentIdx(idx);
+      saveProgress(idx);
+    }
     setShowToc(false);
   };
 
@@ -385,7 +394,7 @@ export const ResidencyTestPage: React.FC<Props> = ({ onGoBack }) => {
               გსურთ გაგრძელება?
             </h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              ნაპოვნია შენახული პროგრესი — კითხვა #{currentIdx + 1}, {correctCount} სწორი, {wrongCount} შეცდომა.
+              ნაპოვნია შენახული პროგრესი — კითხვა #{activeQuestionsPool[currentIdx]?.origNum ?? currentIdx + 1}, {correctCount} სწორი, {wrongCount} შეცდომა.
               გსურთ გაგრძელოთ თუ თავიდან დაიწყოთ?
             </p>
             <div className="flex gap-2 text-xs font-bold pt-2 justify-end">
