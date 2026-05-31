@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { FirebaseProvider, useFirebase } from './components/FirebaseProvider';
 import { UploadSection } from './components/UploadSection';
 import { MyTestsSection } from './components/MyTestsSection';
@@ -9,8 +9,10 @@ import { AuscultationSection } from './components/AuscultationSection';
 import { StatisticsSection } from './components/StatisticsSection';
 import { AdminPanel } from './components/AdminPanel';
 import { TestPracticePage } from './components/TestPracticePage';
-import { ResidencyTestPage } from './components/ResidencyTestPage';
 import { playClickSound } from './utils/sounds';
+
+// Heavy components — loaded only when needed
+const ResidencyTestPage = lazy(() => import('./components/ResidencyTestPage').then(m => ({ default: m.ResidencyTestPage })));
 
 // Icons
 import {
@@ -133,7 +135,9 @@ const AppContent: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 text-zinc-900 dark:text-white p-4 md:p-6 transition-colors duration-200">
         <div className="max-w-5xl mx-auto">
-          <ResidencyTestPage onGoBack={() => setShowResidency(false)} />
+          <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"/></div>}>
+            <ResidencyTestPage onGoBack={() => setShowResidency(false)} />
+          </Suspense>
         </div>
       </div>
     );

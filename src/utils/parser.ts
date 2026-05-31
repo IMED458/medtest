@@ -1,10 +1,4 @@
 import { Question, ValidationIssue, ValidationReport } from '../types';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set up source for PDFJS global worker
-// @ts-ignore
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 /**
  * Normalizes Georgian and Latin characters to facilitate searching/comparison
@@ -153,23 +147,3 @@ export function parseTextToQuestions(text: string): {
   return { questions, report };
 }
 
-/**
- * Extracts text from PDF using PDFJS Library
- */
-export async function extractTextFromPDF(file: File, onProgress?: (pct: number) => void): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let fullText = '';
-  const totalPages = pdf.numPages;
-
-  for (let i = 1; i <= totalPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
-    fullText += pageText + '\n';
-    if (onProgress) {
-      onProgress(Math.floor((i / totalPages) * 100));
-    }
-  }
-  return fullText;
-}
