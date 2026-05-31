@@ -31,8 +31,9 @@ export const TestLibrarySection: React.FC<TestLibrarySectionProps> = ({ onStartT
       return;
     }
 
-    // Google-auth user: read all public tests from Firestore
-    const unsubTests = onSnapshot(collection(db, 'tests'), (snapshot) => {
+    // Only load the current user's own tests — shared tests are visible through groups
+    const testsQuery = query(collection(db, 'tests'), where('createdBy', '==', user.uid));
+    const unsubTests = onSnapshot(testsQuery, (snapshot) => {
       const list: TestMetadata[] = [];
       snapshot.forEach((doc) => {
         list.push(doc.data() as TestMetadata);

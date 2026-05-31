@@ -22,16 +22,19 @@ service cloud.firestore {
       allow write: if isOwner(userId) || userId.startsWith('guest_local_');
     }
 
-    // Tests Collection rules (Central platform library)
+    // Tests Collection — only owner can read/write their own tests
     match /tests/{testId} {
-      allow read: if true;
-      allow create: if true;
-      allow update, delete: if isSignedIn() && (resource.data.createdBy == request.auth.uid) || (!isSignedIn() && resource.data.createdBy.startsWith('guest_local_'));
+      // Owner can always read their test
+      allow read: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      // Group members can read a test if it is shared in a group they belong to
+      allow read: if isSignedIn() && exists(/databases/$(database)/documents/groups/$(request.query)/members/$(request.auth.uid));
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
 
-      // Questions Subcollection
+      // Questions Subcollection — readable by test owner
       match /questions/{questionId} {
-        allow read: if true;
-        allow write: if true;
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/tests/$(testId)).data.createdBy == request.auth.uid;
+        allow write: if isSignedIn() && get(/databases/$(database)/documents/tests/$(testId)).data.createdBy == request.auth.uid;
       }
     }
 
