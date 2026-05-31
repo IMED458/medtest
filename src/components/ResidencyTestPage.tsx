@@ -82,18 +82,23 @@ export const ResidencyTestPage: React.FC<Props> = ({ onGoBack }) => {
     idx: number, corr: number, wrg: number,
     resps: Record<string, { chosenOptionIndex: number; isCorrect: boolean }>,
     wrongs: string[], flags: string[], secs: number
-  ) => ({
-    testId: RESIDENCY_TEST_ID,
-    userId: user?.uid ?? '',
-    currentQuestionIndex: idx,
-    correctCount: corr,
-    wrongCount: wrg,
-    responses: resps,
-    wrongQuestions: wrongs,
-    flaggedQuestions: flags,
-    timeSpent: secs,
-    updatedAt: new Date().toISOString(),
-  });
+  ) => {
+    // Save origNum (stable across data updates) instead of pool index
+    const origNum = ALL_FLAT[idx]?.origNum ?? null;
+    return {
+      testId: RESIDENCY_TEST_ID,
+      userId: user?.uid ?? '',
+      currentOrigNum: origNum,        // stable identifier
+      currentQuestionIndex: idx,      // kept for backward compat
+      correctCount: corr,
+      wrongCount: wrg,
+      responses: resps,
+      wrongQuestions: wrongs,
+      flaggedQuestions: flags,
+      timeSpent: secs,
+      updatedAt: new Date().toISOString(),
+    };
+  };
 
   const saveProgress = useCallback(async (
     idx = currentIdx, corr = correctCount, wrg = wrongCount,
@@ -125,9 +130,16 @@ export const ResidencyTestPage: React.FC<Props> = ({ onGoBack }) => {
           const snap = await getDoc(doc(db, 'progress', `${RESIDENCY_TEST_ID}_${user.uid}`));
           if (snap.exists()) saved = snap.data();
         }
-        if (saved && (saved.currentQuestionIndex > 0 || Object.keys(saved.responses || {}).length > 0)) {
-          // Restore state immediately, then ask
-          setCurrentIdx(saved.currentQuestionIndex || 0);
+        if (saved && (Object.keys(saved.responses || {}).length > 0 || saved.currentOrigNum > 0)) {
+          // Resolve pool index from saved origNum (stable even after data updates)
+          let resolvedIdx = 0;
+          if (saved.currentOrigNum) {
+            const found = ALL_FLAT.findIndex(q => q.origNum === saved.currentOrigNum);
+            resolvedIdx = found >= 0 ? found : (saved.currentQuestionIndex || 0);
+          } else {
+            resolvedIdx = saved.currentQuestionIndex || 0;
+          }
+          setCurrentIdx(resolvedIdx);
           setSeconds(saved.timeSpent || 0);
           setResponses(saved.responses || {});
           setFlaggedIds(saved.flaggedQuestions || []);
@@ -424,6 +436,24 @@ export const ResidencyTestPage: React.FC<Props> = ({ onGoBack }) => {
           </button>
         </div>
       </div>
+
+      {/* ── Jump to number (inline, always visible) ── */}
+      <form onSubmit={handleJumpToNumber}
+        className="flex items-center gap-2 shrink-0 mt-2 max-w-xl mx-auto w-full">
+        <input
+          type="number"
+          min={1}
+          max={activeQuestionsPool.length}
+          value={jumpInput}
+          onChange={e => setJumpInput(e.target.value)}
+          placeholder={`გადადი ნომერზე (1–${activeQuestionsPool.length})`}
+          className="flex-1 px-3 py-2 text-xs rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 focus:ring-1 focus:ring-indigo-500 outline-none font-sans"
+        />
+        <button type="submit"
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shrink-0">
+          →
+        </button>
+      </form>
 
       {/* ── Filter tabs ── */}
       <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-100/80 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800/60 rounded-xl max-w-xl mx-auto w-full shrink-0 mt-2">
