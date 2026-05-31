@@ -26,7 +26,7 @@ const MODULES = [
     title: 'მოზრდილთა აუსკულტაციის ტესტი',
     subtitle: 'პროპედევტიკა — კლინიკური ფიზიკური გამოკვლევა',
     desc: 'მოზრდილთა გულ-სისხლძარღვთა და სასუნთქი სისტემის ხმების ამოცნობა.',
-    url: null, // TODO: add URL
+    url: 'https://imed458.github.io/propeausc.github.io/',
   },
 ];
 
